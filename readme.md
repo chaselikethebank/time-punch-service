@@ -1,99 +1,82 @@
-A RESTful API for employee time tracking built with C# .NET Core, Entity Framework Core, and SQLite.
+This doc serves as the requirements -> API design and schema 
+## Resources needed
+- Employees -> these will be the people punching in 
+- Punch Types -> for in, out, lunch and transfer 
+- Time Punches -> the actual stamp for when someone punches time, will probably need a timestamp, note, type and emp id
+## Relationships 
+- Employee has many TimePunch
+- TimePunch belongs to Employee
+- TimePunch has one PunchType
 
-## Setup
+## Models
 
-```bash
-dotnet build
-dotnet run
-```
+### Employee Model
+- `Id` (int)  
+- FirstName (string)  
+- LastName (string)  
+- EmployeeNumber (int)
+- `Email` (string)  
+- TimePunches (generic, of type T, list, TimePunches object)
 
-API Documentation: `http://localhost:5132/swagger`
+### TimePunch
+- `Id` (int)  
+- `EmployeeId` (int) FK -> Employee
+- `Timestamp` (DateTime) 
+- `PunchType` (enum) 
+- `Notes` (string) — optional note for the punch
+-  Employee (nav to related employee)
 
-## Endpoints
+### PunchType (enum)
+Enumerates possible punch types:
+- `In`
+- `Out`
+- `Lunch`
+- `Transfer`
 
-### Employee Management
+## CRUD -> REST APIs
+### Employees
 
-**GET /api/employees**
+- **GET /api/employees**  
+  Returns a list of all employees.  
+  **Response:** 200 OK, JSON array of employee objects  
 
-```
-Returns: List of all employees
-```
+- **POST /api/employees**  
+  Creates a new employee.  
+  **Request Body:** JSON `{ "name": string, "email": string, ... }`  
+  **Response:** 201 Created, JSON object of created employee  
+  **Validation:** 400 Bad Request if required fields are missing  
 
-**POST /api/employees**
+- **DELETE /api/employees/{id}**  
+  Deletes an employee by ID.  
+  **Response:** 204 No Content  
+  **Validation:** 404 Not Found if employee does not exist  
 
-```json
-{
-  "firstName": "John",
-  "lastName": "Doe",
-  "employeeNumber": "EMP001",
-  "email": "john@company.com"
-}
-```
+- **GET /api/employees/{id}/status**  
+  Returns the current status of an employee based on last punch (spot check as I am testing validation / business logic for fraud / accidental punching).  
+  **Response:** 200 OK, JSON { "employeeId": int, "currentState": string, "lastPunchType": PunchType?, "lastPunchTime": DateTime? }  
+  **Validation:** 404 Not Found if employee does not exist  
 
-### Time Punch Operations
+## TimePunches
 
-**GET /api/employees/{employeeId}/timepunches**
+- **GET /api/employees/{employeeId}/timepunches**  
+  Retrieves all punches for a specific employee.  
+  **Response:** 200 OK, JSON array of time punches  
+  **Validation:** 404 Not Found if employee does not exist  
 
-```
-Returns: List of time punches for employee
-```
+- **POST /api/employees/{employeeId}/timepunches**  
+  Creates a punch for a specific employee.  
+  **Request Body:** JSON { "punchType": int, "notes": string }
+  **Response:** 201 Created, JSON object of created punch  
+  **Validation:** 404 Not Found if employee does not exist  
+  **Validation:** 400 Bad Request if punch sequence is invalid  
 
-**POST /api/employees/{employeeId}/timepunches**
+- **PUT /api/employees/{employeeId}/timepunches/{id}**  
+  Updates a specific punch for an employee.  
+  **Request Body:** JSON { "punchType": int, "notes": string, "timestamp": DateTime }
+  **Response:** 200 OK, JSON object of updated punch  
+  **Validation:** 404 Not Found if employee or punch does not exist  
 
-```json
-{
-  "punchType": 1,
-  "notes": "Clocking in for the day"
-}
-```
-
-**PUT /api/employees/{employeeId}/timepunches/{id}**
-
-```json
-{
-  "punchType": 2,
-  "notes": "Updated notes",
-  "timestamp": "2025-08-28T12:00:00"
-}
-```
-
-**DELETE /api/employees/{employeeId}/timepunches/{id}**
-
-```
-Deletes specified time punch
-```
-
-## Punch Types
-
-- `1` - Clock In
-- `2` - Clock Out
-- `3` - Lunch
-- `4` - Transfer
-
-## Business Rules
-
-- First punch must be Clock In (PunchType 1)
-- Valid sequences:
-    - In → Out, Lunch, Transfer
-    - Out → In
-    - Lunch → In
-    - Transfer → Out
-
-## Security Features
-
-- Employee validation (404 if employee doesn't exist)
-- Punch sequence validation (400 for invalid sequences)
-- Employee isolation (can only access own punches)
-
-## Error Responses
-
-- `404` - "Employee not found"
-- `404` - "Time punch not found"
-- `400` - "Invalid punch sequence"
-
-## Tech Stack
-
-- .NET Core 8.0
-- Entity Framework Core
-- SQLite Database
-- Swagger/OpenAPI Documentation
+- **DELETE /api/employees/{employeeId}/timepunches/{id}**  
+  Deletes a specific punch for an employee.  
+  **Response:** 204 No Content  
+  **Validation:** 404 Not Found if employee or punch does not exist  
